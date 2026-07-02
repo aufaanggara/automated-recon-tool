@@ -3,9 +3,17 @@ from pydantic import BaseModel
 import subprocess
 import json
 from database import SessionLocal, ScanResult, init_db
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 init_db()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ScanRequest(BaseModel):
