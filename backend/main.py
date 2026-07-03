@@ -72,7 +72,23 @@ def scan_domain(request: ScanRequest):
     return {
         "domain": request.domain,
         "subdomains": subdomains,
-        "live hosts": live_hosts,
-        "nmap result": nmap_result,
-        "domain information": whois_result,
+        "live_hosts": live_hosts,
+        "nmap_result": nmap_result,
+        "whois_result": whois_result,
     }
+
+@app.get("/history")
+def get_history():
+    db = SessionLocal()
+    scans = db.query(ScanResult).order_by(ScanResult.scan_time.desc()).limit(10).all()
+    db.close()
+    return [
+        {
+            "id": s.id,
+            "domain": s.domain,
+            "scan_time": str(s.scan_time),
+            "subdomains_count": len(json.loads(s.subdomains)) if s.subdomains else 0,
+            "live_hosts_count": len(json.loads(s.live_hosts)) if s.live_hosts else 0,
+        }
+        for s in scans
+    ]
