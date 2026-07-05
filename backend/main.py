@@ -1,11 +1,19 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
+from pydantic import BaseModel, field_validator
 import subprocess
 import json
 from database import SessionLocal, ScanResult, init_db
 from fastapi.middleware.cors import CORSMiddleware
+import re
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 init_db()
 
 app.add_middleware(
@@ -24,6 +32,17 @@ app.add_middleware(
 class ScanRequest(BaseModel):
     domain: str
 
+    @field_validator("domain")
+    @classmethod
+    def validate_domain(cls, v):
+        v = v.strip().lower()
+        pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+        if not re.match(pattern, v):
+            raise ValueError("Format domain tidak valid")
+        if len(v) > 253:
+            raise ValueError("Domain terlalu panjang")
+        return v
+
 
 @app.get("/")
 def local():
@@ -31,10 +50,12 @@ def local():
 
 
 @app.post("/scan")
-def scan_domain(request: ScanRequest):
-    print(f"[DEBUG] Mulai scan: {request.domain}")
+@limiter.limit("3/minute")
+def scan_domain(request: Request, body: ScanRequest):
+# def scan_domain(request: ScanRequest):
+    print(f"[DEBUG] Mulai scan: {body.domain}")
     result = subprocess.run(
-        ["/home/aufa/go/bin/subfinder", "-d", request.domain, "-timeout", "30"],
+        ["/home/aufa/go/bin/subfinder", "-d", body.domain, "-timeout", "30"],
         capture_output=True,
         text=True,
     )
@@ -58,7 +79,7 @@ def scan_domain(request: ScanRequest):
     print(f"[DEBUG] Mulai nmap untuk {len(live_hosts_clean)} hosts")
     nmap = subprocess.run(
         # ["time", "nmap", "-sV", "-sC", "--open", "-F"] + live_hosts_clean,
-        ["nmap", "--open", "-F"] + live_hosts_clean,    
+        ["nmap", "--open", "-F"] + live_hosts_clean,
         # ["nmap", "-sV", "--open", "-F", "--version-intensity", "0"] + live_hosts_clean,
         # ["nmap", "-sV", "--open", "-F", "--host-timeout", "30s"] + live_hosts_clean,
         capture_output=True,
@@ -67,13 +88,13 @@ def scan_domain(request: ScanRequest):
     print(f"[DEBUG] nmap selesai")
     nmap_result = [s for s in nmap.stdout.split("\n") if s]
 
-    whois = subprocess.run(["whois", request.domain], capture_output=True, text=True)
+    whois = subprocess.run(["whois", body.domain], capture_output=True, text=True)
     print(f"[DEBUG] whois selesai")
     whois_result = [s for s in whois.stdout.split("\n") if s]
 
     db = SessionLocal()
     scan = ScanResult(
-        domain=request.domain,
+        domain=body.domain,
         subdomains=json.dumps(subdomains),
         live_hosts=json.dumps(live_hosts),
         nmap_result=json.dumps(nmap_result),
@@ -85,7 +106,7 @@ def scan_domain(request: ScanRequest):
 
     print("[DEBUG] OPTIONS /scan diterima")
     return {
-        "domain": request.domain,
+        "domain": body.domain,
         "subdomains": subdomains,
         "live_hosts": live_hosts,
         "nmap_result": nmap_result,

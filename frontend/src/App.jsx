@@ -80,6 +80,16 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain }),
       });
+
+      if (res.status === 429) {
+        alert("Terlalu banyak request. Tunggu 1 menit sebelum scan lagi.");
+        return;
+      }
+      if (res.status === 422) {
+        alert("Format domain tidak valid.");
+        return;
+      }
+
       const data = await res.json();
       setResult(data);
       fetch(`${BACKEND}/history`)
