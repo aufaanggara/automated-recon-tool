@@ -53,13 +53,13 @@ def local():
 @limiter.limit("3/minute")
 def scan_domain(request: Request, body: ScanRequest):
 # def scan_domain(request: ScanRequest):
-    print(f"[DEBUG] Mulai scan: {body.domain}")
+    # print(f"[DEBUG] Mulai scan: {body.domain}")
     result = subprocess.run(
         ["/home/aufa/go/bin/subfinder", "-d", body.domain, "-timeout", "30"],
         capture_output=True,
         text=True,
     )
-    print(f"[DEBUG] Subfinder selesai: {len(result.stdout.splitlines())} subdomain")
+    # print(f"[DEBUG] Subfinder selesai: {len(result.stdout.splitlines())} subdomain")
 
     subdomains = [s for s in result.stdout.split("\n") if s]
     httpx_result = subprocess.run(
@@ -68,7 +68,7 @@ def scan_domain(request: Request, body: ScanRequest):
         capture_output=True,
         text=True,
     )
-    print(f"[DEBUG] httpx selesai: {len(httpx_result.stdout.splitlines())} live hosts")
+    # print(f"[DEBUG] httpx selesai: {len(httpx_result.stdout.splitlines())} live hosts")
 
     live_hosts = [s for s in httpx_result.stdout.split("\n") if s]
     live_hosts_clean = [
@@ -76,7 +76,7 @@ def scan_domain(request: Request, body: ScanRequest):
     ]
     live_hosts_clean = live_hosts_clean[:10]
 
-    print(f"[DEBUG] Mulai nmap untuk {len(live_hosts_clean)} hosts")
+    # print(f"[DEBUG] Mulai nmap untuk {len(live_hosts_clean)} hosts")
     nmap = subprocess.run(
         # ["time", "nmap", "-sV", "-sC", "--open", "-F"] + live_hosts_clean,
         ["nmap", "--open", "-F"] + live_hosts_clean,
@@ -85,11 +85,11 @@ def scan_domain(request: Request, body: ScanRequest):
         capture_output=True,
         text=True,
     )
-    print(f"[DEBUG] nmap selesai")
+    # print(f"[DEBUG] nmap selesai")
     nmap_result = [s for s in nmap.stdout.split("\n") if s]
 
     whois = subprocess.run(["whois", body.domain], capture_output=True, text=True)
-    print(f"[DEBUG] whois selesai")
+    # print(f"[DEBUG] whois selesai")
     whois_result = [s for s in whois.stdout.split("\n") if s]
 
     db = SessionLocal()
@@ -104,7 +104,7 @@ def scan_domain(request: Request, body: ScanRequest):
     db.commit()
     db.close()
 
-    print("[DEBUG] OPTIONS /scan diterima")
+    # print("[DEBUG] OPTIONS /scan diterima")
     return {
         "domain": body.domain,
         "subdomains": subdomains,
