@@ -49,7 +49,7 @@ Hasil scan dikembalikan langsung ke frontend, dan salinannya disimpan ke databas
 ## Struktur Folder
 
 ```
-projek2/
+automated-recon-tool/
 ├── backend/
 │   ├── main.py
 │   ├── database.py
@@ -61,6 +61,14 @@ projek2/
 │   │   └── index.css
 │   ├── vite.config.js
 │   └── package.json
+├── writeups/
+│   └── 01-setup-environment.md
+│   └── 02-api-dasar.md
+│   └── 03-integrasi-tools-recon.md
+│   └── 04-database.md
+│   └── 05-frontend.md
+│   └── 06-keamanan.md
+│   └── README.md
 └── docs/
     └── screenshots/
         ├── 1-setup/
